@@ -305,7 +305,7 @@ func (i *Transaction) execute() error {
 		tmplts.Templates = append(tmplts.Templates, tmplt)
 		tukdbint.NewDBEvent(&tmplts)
 		tmplts = tukdbint.Templates{Action: tukcnst.INSERT}
-		tmplt = tukdbint.Template{Name: i.Name, IsXML: false, Template: i.TMPLT}
+		tmplt = tukdbint.Template{Name: i.Name, IsXML: false, Template: i.Template}
 		tmplts.Templates = append(tmplts.Templates, tmplt)
 		if err = tukdbint.NewDBEvent(&tmplts); err != nil {
 			return err
