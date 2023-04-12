@@ -3,7 +3,6 @@ package tuktmplts
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"html/template"
 	"log"
 
@@ -246,15 +245,11 @@ type PIXm struct {
 	} `json:"entry"`
 }
 type Transaction struct {
-	Act       string
-	Name      string
-	Request   string
-	Response  string
-	Templates []Template
-}
-type Template struct {
-	Name  string
-	TMPLT string
+	Act      string
+	Name     string
+	Request  string
+	Response string
+	Template string
 }
 type Inject struct {
 	CGL    CGL
@@ -266,32 +261,26 @@ type Interface interface {
 }
 
 var htmlTemplates *template.Template
+var isInit = true
 
 func New_Transaction(i Interface) error {
 	return i.execute()
 }
 func (i *Transaction) execute() error {
 	var err error
+	if isInit {
+		if err = cacheTemplates(); err != nil {
+			return err
+		}
+		isInit = false
+	}
+
 	var tplReturn bytes.Buffer
 	var inject = Inject{}
 	i.Response = i.Request
 
 	switch i.Act {
 	case tukcnst.SELECT:
-		htmlTemplates = template.New(tukcnst.HTML)
-		tmplts := tukdbint.Templates{Action: tukcnst.SELECT}
-		tmplt := tukdbint.Template{Name: i.Name, IsXML: false}
-		tmplts.Templates = append(tmplts.Templates, tmplt)
-		if err = tukdbint.NewDBEvent(&tmplts); err != nil {
-			return err
-		}
-		if tmplts.Count != 1 {
-			return errors.New("unable to locate html template for " + i.Name)
-		}
-		log.Printf("loaded %s Template", i.Name)
-		if htmlTemplates, err = htmlTemplates.New(tmplt.Name).Parse(tmplts.Templates[1].Template); err != nil {
-			return err
-		}
 		switch i.Name {
 		case tukcnst.PDQ_SERVER_TYPE_CGL:
 			err = json.Unmarshal([]byte(i.Request), &inject.CGL)
@@ -311,16 +300,29 @@ func (i *Transaction) execute() error {
 		}
 		i.Response = tplReturn.String()
 	case tukcnst.INSERT:
-		tmplts := tukdbint.Templates{Action: tukcnst.INSERT}
-		for _, v := range i.Templates {
-			tmplt := tukdbint.Template{Name: v.Name, IsXML: false, Template: v.TMPLT}
-			tmplts.Templates = append(tmplts.Templates, tmplt)
-			if err = tukdbint.NewDBEvent(&tmplts); err != nil {
-				return err
-			}
+		tmplts := tukdbint.Templates{Action: tukcnst.DELETE}
+		tmplt := tukdbint.Template{Name: i.Name}
+		tmplts.Templates = append(tmplts.Templates, tmplt)
+		tukdbint.NewDBEvent(&tmplts)
+		tmplts = tukdbint.Templates{Action: tukcnst.INSERT}
+		tmplt = tukdbint.Template{Name: i.Name, IsXML: false, Template: i.TMPLT}
+		tmplts.Templates = append(tmplts.Templates, tmplt)
+		if err = tukdbint.NewDBEvent(&tmplts); err != nil {
+			return err
 		}
 	}
-
 	return err
-
+}
+func cacheTemplates() error {
+	var err error
+	htmlTemplates = template.New(tukcnst.HTML)
+	tmplts := tukdbint.Templates{Action: tukcnst.SELECT}
+	tukdbint.NewDBEvent(&tmplts)
+	log.Printf("cached %v Templates", tmplts.Count)
+	for _, tmplt := range tmplts.Templates {
+		if htmlTemplates, err = htmlTemplates.New(tmplt.Name).Parse(tmplt.Template); err != nil {
+			return err
+		}
+	}
+	return err
 }
