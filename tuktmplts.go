@@ -248,8 +248,8 @@ type PIXm struct {
 type Transaction struct {
 	Act       string
 	Name      string
-	Request   []byte
-	Response  []byte
+	Request   string
+	Response  string
 	Templates []Template
 }
 type Template struct {
@@ -294,22 +294,22 @@ func (i *Transaction) execute() error {
 		}
 		switch i.Name {
 		case tukcnst.PDQ_SERVER_TYPE_CGL:
-			err = json.Unmarshal(i.Request, &inject.CGL)
+			err = json.Unmarshal([]byte(i.Request), &inject.CGL)
 			if err := htmlTemplates.ExecuteTemplate(&tplReturn, i.Name, inject.CGL); err != nil {
 				return err
 			}
 		case "delphi":
-			err = json.Unmarshal(i.Request, &inject.Delphi)
+			err = json.Unmarshal([]byte(i.Request), &inject.Delphi)
 			if err := htmlTemplates.ExecuteTemplate(&tplReturn, i.Name, inject.Delphi); err != nil {
 				return err
 			}
 		case tukcnst.PDQ_SERVER_TYPE_IHE_PIXM:
-			err = json.Unmarshal(i.Request, &inject.PIXm)
+			err = json.Unmarshal([]byte(i.Request), &inject.PIXm)
 			if err := htmlTemplates.ExecuteTemplate(&tplReturn, i.Name, inject.PIXm); err != nil {
 				return err
 			}
 		}
-		i.Response = tplReturn.Bytes()
+		i.Response = tplReturn.String()
 	case tukcnst.INSERT:
 		tmplts := tukdbint.Templates{Action: tukcnst.INSERT}
 		for _, v := range i.Templates {
